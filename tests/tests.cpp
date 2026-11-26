@@ -1,5 +1,6 @@
 #include "Decoder.hpp"
 #include "Encoder.hpp"
+#include "Node.hpp"
 #include "Packet.hpp"
 
 #include <cassert>
@@ -134,6 +135,38 @@ void testDecodeFailureCases() {
     assert(threw);
 }
 
+void testNodeSendReceiveAndDecode() {
+    cxor::Node nodeA("A");
+    cxor::Node nodeB("B");
+
+    cxor::Packet pktA(10, "A", "B", "FROM_A");
+    cxor::Packet pktB(20, "B", "A", "FROM_B!!");
+
+    nodeA.enqueuePacket(pktA);
+    nodeB.enqueuePacket(pktB);
+
+    assert(nodeA.hasOutgoing());
+    assert(nodeB.hasOutgoing());
+    assert(nodeA.hasKnownPacket(10));
+    assert(nodeB.hasKnownPacket(20));
+
+    const auto sentA = nodeA.popOutgoing();
+    const auto sentB = nodeB.popOutgoing();
+    assert(sentA.has_value() && sentB.has_value());
+    assert(!nodeA.hasOutgoing());
+
+    const auto coded = cxor::Encoder::encode(500, "R", *sentA, *sentB);
+
+    assert(nodeA.receive(coded));
+    assert(nodeB.receive(coded));
+
+    assert(nodeA.deliveredPackets().size() == 1);
+    assert(nodeA.deliveredPackets()[0] == pktB);
+
+    assert(nodeB.deliveredPackets().size() == 1);
+    assert(nodeB.deliveredPackets()[0] == pktA);
+}
+
 }  // namespace
 
 int main() {
@@ -145,7 +178,8 @@ int main() {
     testDecodeTwoPackets();
     testDecodeManyPackets();
     testDecodeFailureCases();
+    testNodeSendReceiveAndDecode();
 
-    std::cout << "All Module 1 & 2 (Packet, Encoder, Decoder) tests passed.\n";
+    std::cout << "All Module 1-3 (Packet, Encoder, Decoder, Node) tests passed.\n";
     return 0;
 }

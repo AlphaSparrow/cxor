@@ -10,6 +10,7 @@ add_library(cxor_core
     src/Packet.cpp
     src/Encoder.cpp
     src/Decoder.cpp
+    src/Node.cpp
 )
 
 target_include_directories(cxor_core PUBLIC
