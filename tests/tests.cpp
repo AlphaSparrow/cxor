@@ -1,3 +1,4 @@
+#include "Decoder.hpp"
 #include "Encoder.hpp"
 #include "Packet.hpp"
 
@@ -83,6 +84,56 @@ void testEncodeMany() {
     assert(threw);
 }
 
+void testDecodeTwoPackets() {
+    cxor::Packet pktA(101, "A", "B", "PING");
+    cxor::Packet pktB(202, "B", "A", "PONG!!");
+    const auto coded = cxor::Encoder::encode(900, "R", pktA, pktB);
+
+    const auto recoveredAtA = cxor::Decoder::decode(coded, pktA);
+    assert(recoveredAtA == pktB);
+
+    const auto recoveredAtB = cxor::Decoder::decode(coded, pktB);
+    assert(recoveredAtB == pktA);
+}
+
+void testDecodeManyPackets() {
+    cxor::Packet pktA(1, "A", "B", "ALPHA");
+    cxor::Packet pktB(2, "B", "C", "BRAVO_2");
+    cxor::Packet pktC(3, "C", "A", "CHARLIE");
+    const std::vector<cxor::Packet> all{pktA, pktB, pktC};
+    const auto coded = cxor::Encoder::encodeMany(901, "R", all);
+
+    const std::vector<cxor::Packet> knownAtC{pktA, pktB};
+    assert(cxor::Decoder::canDecode(coded, knownAtC));
+    const auto recovered = cxor::Decoder::decode(coded, knownAtC);
+    assert(recovered == pktC);
+}
+
+void testDecodeFailureCases() {
+    cxor::Packet pktA(1, "A", "B", "ONE");
+    cxor::Packet pktB(2, "B", "A", "TWO");
+    const auto coded = cxor::Encoder::encode(902, "R", pktA, pktB);
+
+    // No known packets -> cannot decode
+    assert(!cxor::Decoder::canDecode(coded, {}));
+    assert(!cxor::Decoder::tryDecode(coded, {}).has_value());
+
+    // All packets already known -> nothing missing
+    const std::vector<cxor::Packet> allKnown{pktA, pktB};
+    assert(!cxor::Decoder::canDecode(coded, allKnown));
+
+    // Native (uncoded) packet -> cannot decode
+    assert(!cxor::Decoder::canDecode(pktA, {}));
+
+    bool threw = false;
+    try {
+        (void)cxor::Decoder::decode(coded, std::span<const cxor::Packet>{});
+    } catch (const std::invalid_argument&) {
+        threw = true;
+    }
+    assert(threw);
+}
+
 }  // namespace
 
 int main() {
@@ -91,7 +142,10 @@ int main() {
     testXorBytesDifferentLengths();
     testEncodeTwoPackets();
     testEncodeMany();
+    testDecodeTwoPackets();
+    testDecodeManyPackets();
+    testDecodeFailureCases();
 
-    std::cout << "All Module 1 (Packet & Encoder) tests passed.\n";
+    std::cout << "All Module 1 & 2 (Packet, Encoder, Decoder) tests passed.\n";
     return 0;
 }

@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(cxor_core
     src/Packet.cpp
     src/Encoder.cpp
+    src/Decoder.cpp
 )
 
 target_include_directories(cxor_core PUBLIC
