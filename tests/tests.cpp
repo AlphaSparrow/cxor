@@ -2,6 +2,7 @@
 #include "Encoder.hpp"
 #include "Node.hpp"
 #include "Packet.hpp"
+#include "Relay.hpp"
 
 #include <cassert>
 #include <cstdint>
@@ -167,6 +168,46 @@ void testNodeSendReceiveAndDecode() {
     assert(nodeB.deliveredPackets()[0] == pktA);
 }
 
+void testRelayCodingAndNormalForwarding() {
+    cxor::Node nodeA("A");
+    cxor::Node nodeB("B");
+    cxor::Relay relay("R", 1000);
+
+    cxor::Packet pktA(1, "A", "B", "MSG_FOR_B");
+    cxor::Packet pktB(2, "B", "A", "MSG_FOR_A");
+    cxor::Packet pktExtra(3, "A", "C", "UNICAST");
+
+    nodeA.enqueuePacket(pktA);
+    nodeB.enqueuePacket(pktB);
+    nodeA.enqueuePacket(pktExtra);
+
+    relay.receive(*nodeA.popOutgoing());
+    relay.receive(*nodeB.popOutgoing());
+    relay.receive(*nodeA.popOutgoing());
+    assert(relay.pendingCount() == 3);
+
+    // First transmission: coded (pktA ^ pktB)
+    const auto tx1 = relay.forwardNext(true);
+    assert(tx1.has_value());
+    assert(tx1->isCoded());
+    assert(tx1->id() == 1000);
+    assert(nodeA.receive(*tx1));
+    assert(nodeB.receive(*tx1));
+    assert(nodeA.deliveredPackets().back() == pktB);
+    assert(nodeB.deliveredPackets().back() == pktA);
+
+    // Second transmission: uncoded fallback (pktExtra)
+    const auto tx2 = relay.forwardNext(true);
+    assert(tx2.has_value());
+    assert(!tx2->isCoded());
+    assert(*tx2 == pktExtra);
+    assert(!relay.hasPending());
+
+    assert(relay.codedTransmissions() == 1);
+    assert(relay.uncodedTransmissions() == 1);
+    assert(relay.totalTransmissions() == 2);
+}
+
 }  // namespace
 
 int main() {
@@ -179,7 +220,8 @@ int main() {
     testDecodeManyPackets();
     testDecodeFailureCases();
     testNodeSendReceiveAndDecode();
+    testRelayCodingAndNormalForwarding();
 
-    std::cout << "All Module 1-3 (Packet, Encoder, Decoder, Node) tests passed.\n";
+    std::cout << "All Module 1-4 (Packet, Encoder, Decoder, Node, Relay) tests passed.\n";
     return 0;
 }

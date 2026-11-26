@@ -11,6 +11,7 @@ add_library(cxor_core
     src/Encoder.cpp
     src/Decoder.cpp
     src/Node.cpp
+    src/Relay.cpp
 )
 
 target_include_directories(cxor_core PUBLIC
