@@ -1,5 +1,6 @@
 #include "Decoder.hpp"
 #include "Encoder.hpp"
+#include "Network.hpp"
 #include "Node.hpp"
 #include "Packet.hpp"
 #include "Relay.hpp"
@@ -208,6 +209,32 @@ void testRelayCodingAndNormalForwarding() {
     assert(relay.totalTransmissions() == 2);
 }
 
+void testNetworkNormalVsCodedComparison() {
+    const std::vector<cxor::TrafficEvent> bidirectionalTraffic{
+        {"A", "B", "PKT_A1"},
+        {"B", "A", "PKT_B1"},
+        {"A", "B", "PKT_A2"},
+        {"B", "A", "PKT_B2"},
+    };
+
+    const auto report =
+        cxor::Network::compareScenario("Symmetric Bidirectional", bidirectionalTraffic);
+
+    assert(report.normal.packetsSent == 4);
+    assert(report.normal.packetsDelivered == 4);
+    assert(report.normal.relayTransmissions() == 4);
+    assert(report.normal.totalTransmissions() == 8);
+
+    assert(report.coded.packetsSent == 4);
+    assert(report.coded.packetsDelivered == 4);
+    assert(report.coded.relayCodedTransmissions == 2);
+    assert(report.coded.relayUncodedTransmissions == 0);
+    assert(report.coded.totalTransmissions() == 6);
+
+    assert(report.transmissionsSaved() == 2);
+    assert(report.savingsPercent() == 25.0);
+}
+
 }  // namespace
 
 int main() {
@@ -221,7 +248,8 @@ int main() {
     testDecodeFailureCases();
     testNodeSendReceiveAndDecode();
     testRelayCodingAndNormalForwarding();
+    testNetworkNormalVsCodedComparison();
 
-    std::cout << "All Module 1-4 (Packet, Encoder, Decoder, Node, Relay) tests passed.\n";
+    std::cout << "All Module 1-5 (Packet, Encoder, Decoder, Node, Relay, Network) tests passed.\n";
     return 0;
 }

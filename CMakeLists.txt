@@ -12,6 +12,7 @@ add_library(cxor_core
     src/Decoder.cpp
     src/Node.cpp
     src/Relay.cpp
+    src/Network.cpp
 )
 
 target_include_directories(cxor_core PUBLIC
